@@ -1,0 +1,7 @@
+#ignore for docker image
+Dockerfile*
+README.md
+.gitignore
+.dockerignore
+__pycache__
+.env

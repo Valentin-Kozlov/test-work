@@ -1,0 +1,74 @@
+namespace: test
+
+image:
+  registry: docker-registry.com/app
+  imageName: flask-app
+  tag: 0.2.12
+
+module: app-test
+
+
+deployment:
+  enableLivenessProbe: true
+  enableReadinessProbe: true
+
+  replicas: 1
+
+  imagePullPolicy: Always
+  imagePullSecrets: docker-registry.com
+  
+  env:
+    - name: POSTGRES_USER
+      value: postgres
+    - name: POSTGRES_PASSWORD
+      value: postgres
+    - name: POSTGRES_DATABASE
+      value: IP
+    - name: POSTGRES_HOST
+      value: example.com:35432
+      
+  ports: 3000
+
+  resources:
+    limits:
+      cpu: 100m
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+
+  readinessProbe:
+    initialDelaySeconds: 1
+    periodSeconds: 10
+    timeoutSeconds: 3
+    successThreshold: 1
+    failureThreshold: 5
+    httpGet:
+      path: /healthz
+      port: 3000
+      scheme: HTTP
+
+  livenessProbe:
+    initialDelaySeconds: 1
+    periodSeconds: 10
+    timeoutSeconds: 3
+    successThreshold: 1
+    failureThreshold: 5
+    httpGet:
+      path: /healthz
+      port: 3000
+      scheme: HTTP
+
+  terminationGracePeriodSeconds: 60
+
+service:
+  port: 3000
+
+route:
+  host: ip.example.com
+
+secret:
+  postgres_user: test-user
+  postgres_password: test-password
+  postgres_host: example.com
+  postgres_database: ip

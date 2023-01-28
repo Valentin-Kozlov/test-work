@@ -1,0 +1,13 @@
+apiVersion : v2
+name       : deploy-pg
+type       : application
+version    : 1.0.0
+
+
+keywords:
+  - statefullset
+  - service
+
+
+maintainers:
+  - name : Valentin Kozlov

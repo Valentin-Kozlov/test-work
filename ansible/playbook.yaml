@@ -1,0 +1,23 @@
+---
+- name: helmApply
+  hosts: nodes
+  vars:
+    K8S_AUTH_HOST: 'example.com'
+    K8S_AUTH_KUBECONFIG: ~/.kube/config
+  tasks:
+  - name: Deploy Postgresql chart inside namespace (and create it)
+    kubernetes.core.helm:
+      name: postgres
+      chart_ref: ../helm/deploy_db
+      release_namespace: test
+      create_namespace: true
+      wait: True
+      
+  - name: Deploy APP chart inside namespace
+    kubernetes.core.helm:
+      name: postgres
+      chart_ref: ../helm/deploy_app
+      release_namespace: test
+      values_files:
+        - ../helm/deploy_app/values/flask-app-values.yaml
+...

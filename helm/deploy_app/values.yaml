@@ -1,0 +1,83 @@
+namespace: prod
+
+image:
+  registry: docker-registry.com/app
+  imageName: front
+  tag: 0.2.12
+
+module: app-test
+
+
+deployment:
+  enableLivenessProbe: true
+  enableReadinessProbe: true
+
+  replicas: 1
+
+  imagePullPolicy: Always
+  imagePullSecrets: docker-registry.com
+
+  env:
+    - name: CONTEXT_PATH
+      value: "/app"
+    - name: POSTGRES_HOST
+      valueFrom:
+        configMapKeyRef:
+          name: global-config
+          key: POSTGRES_HOST
+  
+  configMapRef:
+  - global-config
+  - service-links
+
+  ports: 3000
+
+  resources:
+    limits:
+      cpu: 100m
+      memory: 200Mi
+    requests:
+      cpu: 10m
+      memory: 100Mi
+
+  readinessProbe:
+    initialDelaySeconds: 1
+    periodSeconds: 10
+    timeoutSeconds: 3
+    successThreshold: 1
+    failureThreshold: 5
+    httpGet:
+      path: /healthz
+      port: 3000
+      scheme: HTTP
+
+  livenessProbe:
+    initialDelaySeconds: 1
+    periodSeconds: 10
+    timeoutSeconds: 3
+    successThreshold: 1
+    failureThreshold: 5
+    httpGet:
+      path: /healthz
+      port: 3000
+      scheme: HTTP
+
+  terminationGracePeriodSeconds: 60
+
+service:
+  port: 3000
+
+route:
+  host: example.com
+  path: /hostURI
+
+secret:
+  # postgres_user: test-user
+  # postgres_password: test-password
+
+fromFile:
+  # configmap:
+  #   config.json: /service/
+
+  secret:
+    # config.json: /opt/service/

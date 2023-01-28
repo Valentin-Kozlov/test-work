@@ -1,0 +1,22 @@
+namespace: prod
+
+image:
+  registry: docker-registry.com/pg
+  imageName: postgres
+  tag: 13-alpine
+
+statefullset:
+  env:
+    - name: POSTGRES_USER
+      value: postgres
+    - name: POSTGRES_PASSWORD
+      value: postgres
+    - name: POSTGRES_DB
+      value: IP
+  persistent:
+    storageClass: thin
+    size: 1Gi
+
+service:
+  port: 5432
+  nodePort: 35432

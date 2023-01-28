@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.image.imageName }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.deployment.replicas }}
+  selector:
+    matchLabels:
+      {{- include "labels" . | nindent 6 }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Values.image.imageName }}
+          {{- if or (.Values.deployment.configMapRef) (.Values.secret) }}
+          envFrom:
+          {{- if .Values.secret }}
+            - secretRef:
+                name: {{ .Values.image.imageName }}
+          {{- end }}
+          {{- if .Values.deployment.configMapRef }}
+            {{- range $_, $conf := .Values.deployment.configMapRef }}
+            - configMapRef:
+                name: {{ $conf }}
+            {{- end }}
+          {{- end }}
+          {{- end }}         
+          {{- if .Values.deployment.env }}
+          {{- with .Values.deployment.env }}
+          env: 
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
+          image: {{ .Values.image.registry }}/{{ .Values.image.imageName }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ default "Always" .Values.deployment.imagePullPolicy }}
+          ports:
+            - name: main
+              containerPort: {{ .Values.deployment.ports}}
+              protocol: TCP
+        {{- if .Values.deployment.enableLivenessProbe }}
+            {{- with .Values.deployment.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.deployment.enableReadinessProbe }}
+            {{- with .Values.deployment.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- end }}
+          resources:
+            limits:
+              cpu: {{ .Values.deployment.resources.limits.cpu }}
+              memory: {{ .Values.deployment.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.deployment.resources.requests.cpu }}
+              memory: {{ .Values.deployment.resources.requests.memory }}
+          {{- if or (.Values.fromFile.configmap) (.Values.fromFile.secret) }}
+          volumeMounts:
+          {{- range $key, $val := $.Values.fromFile.configmap }}
+          {{- $fileNameWithoutEx := (regexReplaceAll "\\.\\S+" $key "") }}
+            - name: {{ print $.Values.image.imageName }}-config-{{ $fileNameWithoutEx }}
+              mountPath: {{ $val }}{{ $key }}
+              subPath: {{ $key }}
+          {{- end -}}
+          {{- range $key, $val := $.Values.fromFile.secret }}
+          {{- $fileNameWithoutEx := (regexReplaceAll "\\.\\S+" $key "") }}
+            - name: {{ print $.Values.image.imageName }}-config-{{ $fileNameWithoutEx }}
+              mountPath: {{ $val }}{{ $key }}
+              subPath: {{ $key }}
+          {{- end -}}
+          {{- end }}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      {{- if or (.Values.fromFile.configmap) (.Values.fromFile.secret) }}
+      volumes:
+      {{- range $key, $val := $.Values.fromFile.configmap }}
+      {{- $fileNameWithoutEx := (regexReplaceAll "\\.\\S+" $key "") }}
+        - name: {{ print $.Values.image.imageName }}-config-{{ $fileNameWithoutEx }}
+          configMap:
+            name: {{ print $.Values.image.imageName }}-config
+            items:
+            - key: {{ $key }}
+              path: {{ $key }}
+      {{- end -}}
+      {{- range $key, $val := $.Values.fromFile.secret }}
+      {{- $fileNameWithoutEx := (regexReplaceAll "\\.\\S+" $key "") }}
+        - name: {{ print $.Values.image.imageName }}-secret-{{ $fileNameWithoutEx }}
+          secret:
+            secretName: {{ print $.Values.image.imageName }}-secret
+            optional: true
+      {{- end -}}
+      {{- end }}
+      dnsPolicy: ClusterFirst
+      {{- if .Values.deployment.imagePullSecrets }}
+      imagePullSecrets:
+        - name: {{ .Values.deployment.imagePullSecrets }}
+      {{- end }}
+      restartPolicy: Always
+      terminationGracePeriodSeconds: {{ default "30" .Values.deployment.terminationGracePeriodSeconds }}
+
+{{- if .Values.route }}
+{{ include "route" . -}}
+{{ end -}}
+{{- if or (.Values.secret) (.Values.fromFile.secret) }}
+{{ include "secret" . -}}
+{{ end }}
+{{ include "configmap" . -}}
